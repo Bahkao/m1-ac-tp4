@@ -6,8 +6,7 @@
 
 
 typedef struct TypTache {
-	int numero;
-	char* nom;
+	char nom;
 	char* intitule;
 	char* dependances;
 	int dateTot;
@@ -17,21 +16,18 @@ typedef struct TypTache {
 typedef struct TypGraphePERT {
 	TypGraphe* graphe;
 	TypTache* taches;
-	int dureeTotale;
-	char* cheminCritique;
 } TypGraphePERT;
 
+TypGraphePERT* creerGraphePERT();
 
-TypGraphe* listeSucc(TypGraphe* graphe, int sommet);
+void calculDates(TypGraphePERT *graphePERT);
 
-int dateAuplusTot(TypGraphePERT* graphe, int sommet);
+int dureeTotale(TypGraphePERT *graphePERT);
 
-int dateAuplusTart(TypGraphePERT* graphe, int sommet);
+void afficherDates(TypGraphePERT *graphePERT);
 
-int plusCourtChemin(TypGraphePERT* graphe, int depart, int arrivee);
+void afficheCheminCritique(TypGraphePERT* graphe);
 
-int* algoBellmanFord(TypGraphePERT* graphe, int depart);
-
-TypVoisins* cheminCritique(TypGraphePERT* graphe);
+TypGraphePERT* lireGraphePERT(FILE* file);
 
 #endif

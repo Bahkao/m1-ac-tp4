@@ -470,9 +470,9 @@ int degreSommet(TypGraphe* graphe, int sommet) {
 	* Description : Renvoie le graphe inversé du graphe passé en paramètre
 	*/
 TypGraphe* grapheInverse(TypGraphe* graphe) {
-    int i;
-    int j;
-    TypGraphe* inverse;
+	TypGraphe* inverse;   /* Le graphe résultat */
+    int        i;         /* Permet le parcours des sommets*/
+    int        j;         /* Permet le parcours des sommets*/
     
     inverse = creerGraphe(graphe->nbrMaxSommets);
     
@@ -507,7 +507,7 @@ TypGraphe* grapheInverse(TypGraphe* graphe) {
 	* Description : Renvoie le poids d'une arête d'un graphe
 	*/
 int poidsArete(TypGraphe* graphe, int depart, int arrivee) {
-	TypVoisins* voisinCourant;
+	TypVoisins* voisinCourant; /* Le sommet courant dans le parcours des sommets */
 	
 	voisinCourant = graphe->listesAdjacences[depart-1];
 	voisinCourant = voisinSuivant(&voisinCourant);
