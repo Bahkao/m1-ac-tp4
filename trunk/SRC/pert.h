@@ -7,27 +7,33 @@
 
 typedef struct TypTache {
 	char nom;
-	char* intitule;
-	char* dependances;
+	char *intitule;
+	int duree;
+	char *dependances;  /* ex : "ACD" */
 	int dateTot;
 	int dateTard;
 } TypTache;
 
 typedef struct TypGraphePERT {
-	TypGraphe* graphe;
-	TypTache* taches;
+	TypGraphe *graphe;
+	TypTache **taches;
 } TypGraphePERT;
 
-TypGraphePERT* creerGraphePERT();
 
-void calculDates(TypGraphePERT *graphePERT);
+TypTache* creerTache(char, char*, int, char*);
 
-int dureeTotale(TypGraphePERT *graphePERT);
+TypGraphePERT* creerGraphePERT(TypTache**, int);
 
-void afficherDates(TypGraphePERT *graphePERT);
+void deleteGraphePERT(TypGraphePERT*);
 
-void afficheCheminCritique(TypGraphePERT* graphe);
+void calculDates(TypGraphePERT*);
 
-TypGraphePERT* lireGraphePERT(FILE* file);
+int dureeTotale(TypGraphePERT*);
+
+void afficherDates(TypGraphePERT*);
+
+void afficherCheminCritique(TypGraphePERT*);
+
+TypGraphePERT* lireGraphePERT(FILE*);
 
 #endif

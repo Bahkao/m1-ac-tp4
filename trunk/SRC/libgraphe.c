@@ -467,7 +467,8 @@ int degreSommet(TypGraphe* graphe, int sommet) {
 	*
 	* Retour : TypGraphe*, le graphe inversé
 	*
-	* Description : Renvoie le graphe inversé du graphe passé en paramètre
+	* Description : Renvoie un graphe identique à celui passé en paramètre mais
+	*               avec les arêtes inversées et qui conservent le même poids
 	*/
 TypGraphe* grapheInverse(TypGraphe* graphe) {
 	TypGraphe* inverse;   /* Le graphe résultat */
@@ -485,8 +486,9 @@ TypGraphe* grapheInverse(TypGraphe* graphe) {
     /* Création des arêtes */
     for (i = 1; i <= graphe->nbrMaxSommets; i++) {
 		for (j = 1; j <= graphe->nbrMaxSommets; j++) {
-			if ((i != j) && (areteExistante(graphe,i,j) == ARETE_INEXISTANTE)) {
-				insertionAreteOriente(inverse,i,j,-1);
+			if ((i != j) && (areteExistante(graphe,i,j) == ARETE_INEXISTANTE) 
+					&& (areteExistante(graphe,j,i) == 0)) {
+				insertionAreteOriente(inverse,i,j,poidsArete(graphe,j,i));
 			}
 		}
     }
@@ -513,10 +515,12 @@ int poidsArete(TypGraphe* graphe, int depart, int arrivee) {
 	voisinCourant = voisinSuivant(&voisinCourant);
 	
 	while (voisinCourant != graphe->listesAdjacences[depart-1]) {
-		if (numeroVoisin(&voisinCourant) == arrivee - 1)
+		if (numeroVoisin(&voisinCourant) == arrivee) {
 			return poidsVoisin(&voisinCourant);
-		else
+		}
+		else {
 			voisinCourant = voisinSuivant(&voisinCourant);
+		}
 	}
   
 	return -1;
