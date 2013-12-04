@@ -72,10 +72,17 @@ void menu_principal() {
 			printf("Saisissez le nom du fichier : ");
 			fgets(ligne,200,stdin);
 			sscanf(ligne,"%s",chemin);
-			fichier = fopen(chemin,"w");
-			graphePERT = lireGraphePERT(fichier);
-			fclose(fichier);
-			sous_menu();
+			if ((fichier = fopen(chemin,"r")) != NULL) {
+			    graphePERT = lireGraphePERT(fichier);
+			    calculDates(graphePERT);
+			    fclose(fichier);
+			    sous_menu();
+			}
+			else {
+			    printf("Le fichier demandé n'existe pas\n");
+			    pause();
+			    menu_principal();
+			}
 			break;
 		case 2 :
 			exit(0);
@@ -240,7 +247,7 @@ static void sousMenuDatesTaches() {
 	* Description : Permet de demander l'affichage des chemins critiques
 	*/
 static void sousMenuCheminsCritiques() {
-	printf("\n=== Chemin(s) critique(s) ===\n\n");
+	printf("\n=== Chemin critique ===\n\n");
 	afficherCheminCritique(graphePERT);
 	pause();
 }
@@ -309,8 +316,9 @@ static void sousMenuChargerFichier() {
 		printf("Saisissez le nom du fichier : ");
 		fgets(ligne,200,stdin);
 		sscanf(ligne,"%s",chemin);
-		fichier = fopen(chemin,"w");
+		fichier = fopen(chemin,"r");
 		graphePERT = lireGraphePERT(fichier);
+		calculDates(graphePERT);
 		fclose(fichier);
 	}
 }

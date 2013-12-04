@@ -1,0 +1,13 @@
+# nom, 'intitule', duree, dependances
+#--------------------------------------
+A, 'maconnerie', 7, -
+B, 'charpente', 4, A
+C, 'toiture', 2, -
+D, 'sanitaires', 6, A, C
+E, 'electricite', 2, B
+F, 'fenetre', 1, C, D, E
+G, 'abords', 1, D, E
+H, 'plafond', 1, F
+I, 'facade', 4, D, E
+J, 'peinture', 2, H
+K, 'finitions', 1, G, I, J
