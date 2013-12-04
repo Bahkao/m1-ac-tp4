@@ -128,11 +128,16 @@ TypGraphePERT* creerGraphePERT(TypTache **taches, int nbTaches) {
 	*				mémoire qui lui avait été allouée est libérée.
 	*/
 void deleteGraphePERT(TypGraphePERT *graphePERT) {
+	int i;
+  
+	/* Libération de la mémoire occupée par les tâches */
+	for (i = 0; i < graphePERT->graphe->nbrMaxSommets; i++) {
+	  free(graphePERT->taches[i]);
+	}
+	free(graphePERT->taches);
+	
 	/* Suppression du graphe associé */
 	deleteGraphe(graphePERT->graphe);
-	
-	/* Libération de la mémoire occupée par les tâches */
-	free(graphePERT->taches);
 	
 	/* Libération de la mémoire occupée par le graphe PERT */
 	free(graphePERT);
@@ -229,6 +234,7 @@ static void calculDatesAuPlusTard(TypGraphePERT *graphePERT) {
 	TypGraphePERT *graphePERTInverse;  /* Le graphe PERT inversé */
 	TypTache      **taches;            /* Les tâches associées au graphe PERT */
 	TypTache      **tachesInverse;     /* Les tâches associées au graphe inversé */
+	TypGraphe     *graphe;             /* Le graphe du graphe PERT inversé avant l'inversion */
 	int           nbSommets;           /* Le nombre de sommets du graphe */
 	int           i;                   /* Permet le parcours des sommets */
 	
@@ -241,7 +247,11 @@ static void calculDatesAuPlusTard(TypGraphePERT *graphePERT) {
 		tachesInverse[i] = creerTache(taches[i]->nom,taches[i]->intitule,taches[i]->duree,taches[i]->dependances);
 	}
 	graphePERTInverse = creerGraphePERT(tachesInverse,nbSommets-2);
-	graphePERTInverse->graphe = grapheInverse(graphePERTInverse->graphe);
+	
+	graphe = graphePERTInverse->graphe;
+	graphePERTInverse->graphe = NULL;
+	
+	graphePERTInverse->graphe = grapheInverse(graphe);
 	
 	/* On calcule les dates au plus tôt du graphe inversé */
 	calculDatesAuPlusTot(graphePERTInverse,nbSommets);
@@ -258,6 +268,7 @@ static void calculDatesAuPlusTard(TypGraphePERT *graphePERT) {
 			taches[nbSommets-1]->dateTot - graphePERTInverse->taches[i-1]->dateTot;
 	}
 	
+	deleteGraphe(graphe);
 	deleteGraphePERT(graphePERTInverse);
 }
 
@@ -397,6 +408,9 @@ TypGraphePERT* lireGraphePERT(FILE *fichier) {
         }
         taches[nbTaches] = creerTache(nom,intitule,duree,dependances);
         nbTaches++;
+	
+	//free(intitule);
+    //free(dependances);
     }
     
     taches = realloc(taches,nbTaches * sizeof(TypTache));
