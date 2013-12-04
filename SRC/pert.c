@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stddef.h>
 #include "libgraphe.h"
 #include "pert.h"
 
@@ -10,6 +11,8 @@ static void calculDatesAuPlusTot(TypGraphePERT*,int);
 static void calculDatesAuPlusTard(TypGraphePERT*);
 static int tacheEnSommet(char);
 static char sommetEnTache(int);
+static char* replace(const char*, const char*, const char*);
+
 
 	/*
 	* Fonction : creerTache
@@ -300,6 +303,7 @@ void afficherDates(TypGraphePERT *graphePERT) {
 	}
 }
 
+
 	/*
 	* Fonction : afficherCheminCritique
 	*
@@ -311,7 +315,6 @@ void afficherDates(TypGraphePERT *graphePERT) {
 	*				A -> B -> C -> D
 	*				
 	*/
-
 void afficherCheminCritique(TypGraphePERT* graphePERT){
 	TypTache      **taches;            /* Les tâches associées au graphe PERT */
 	int 		i;		/* variable de parcours des tâches du graphe*/
@@ -343,46 +346,65 @@ void afficherCheminCritique(TypGraphePERT* graphePERT){
 	/*
 	* Fonction : lireGraphePERT
 	*
-	* Paramètres : char nom
+	* Paramètres : FILE *fichier, un fichier de type chantier.txt 
+        *                 ouvert en lecture
+        *
+        * Retour : TypGraphePERT*, le graphe créé
 	*
-	* Retour : 0
-	*
-	* Description : Affiche le fichier chantier.txt sous la forme:
-	*
-	*	# nom, ’intitule’, duree, dependances
-	*	#--------------------------------------
- 	*	 A, ’maconnerie’, 7, -
- 	*	 B, ’charpente’, 4, A
-	* 	 C, ’toiture’, 2, -
-	*	 D, ’sanitaires’, 6, A, C
-	*	 E, ’electricite’, 2, B
-	*	 F, ’fenetre’, 1, C, D, E
-	*	 G, ’abords’, 1, D, E
-	*	 H, ’plafond’, 1, F
-	*	 I, ’facade’, 4, D, E
-	*	 J, ’peinture’, 2, H
-	*	 K, ’finitions’, 1, G, I, J
+	* Description : Lit un fichier de type chantier.txt, puis crée le graphe
+        *               correspondant et le renvoie
 	*/
-
-int lireGraphePERT(char nomFichier[80]){
-
-	char buffer, chemin[80] = "lecture/";
-	FILE *fichier = NULL;
-	strcat ( chemin, nomFichier );
-	fichier = fopen ( chemin, "r+" );/*Ouverture du fichier en mode lecture*/
-	if ( fichier == NULL ) {
-		return 0;
-	}
-
-	else{
-		while((buffer = fgetc(fichier)) != EOF){
-			printf("%c",buffer);
-		}
-	fclose(fichier);
-	return 0;
-
-	}
-
+TypGraphePERT* lireGraphePERT(FILE *fichier) {
+    TypGraphePERT *graphePERT; /* Le graphe PERT créé */
+    TypTache      **taches;    /* Les tâches du graphe */
+    char          ligne[512];  /* Ligne lue dans le fichier */
+    int           nbTaches;    /* Nombre de tâches total */
+    
+    nbTaches = 0;
+    taches = malloc(10 * sizeof(TypTache));
+    
+    /* Lecture des 2 premières lignes */
+    fgets(ligne,sizeof(ligne),fichier);
+    fgets(ligne,sizeof(ligne),fichier);
+    
+    while (! feof(fichier)) {
+        char nom;
+        char *intitule;
+        int  duree;
+        char *dependances;
+        
+        intitule = malloc(200 * sizeof(char));
+        dependances = malloc(50 * sizeof(char));
+        
+        /* Lecture d'une ligne */
+        fgets(ligne,sizeof(ligne),fichier);
+        
+        sscanf(ligne,"%c, '%[^']', %d, %[^\r\n]",&nom,intitule,&duree,dependances);
+        
+        if (strcmp(dependances,"-") == 0) {
+            dependances = replace(dependances,"-","");
+        }
+        else {
+            dependances = replace(dependances,", ","");
+        }
+        
+        intitule = realloc(intitule,strlen(intitule)+1);
+        dependances = realloc(dependances,strlen(dependances)+1);
+        
+        /* Création de la tâche décrite dans cette ligne */
+        if ( ((nbTaches % 10) == 0) && (nbTaches != 0) ) {
+            taches = realloc(taches,(nbTaches + 10) * sizeof(TypTache));
+        }
+        taches[nbTaches] = creerTache(nom,intitule,duree,dependances);
+        nbTaches++;
+    }
+    
+    taches = realloc(taches,nbTaches * sizeof(TypTache));
+    
+    /* Création du graphe PERT */
+    graphePERT = creerGraphePERT(taches,nbTaches);
+    
+    return graphePERT;
 }
 
 
@@ -417,4 +439,45 @@ static int tacheEnSommet(char nom) {
 	*/
 static char sommetEnTache(int sommet) {
 	return (char) (sommet + 64);
+}
+
+
+	/*
+	* Fonction : replace
+	*
+	* Paramètres : char *str, la chaîne d'origine
+        *              char *old, la sous-chaîne à modifier par new
+        *              char *new, la sous-chaîne qui remplace old
+        *
+        * Retour : char*, pointeur sur la nouvelle chaîne
+	*
+	* Description : Remplace new par old dans str et renvoie un pointeur
+        *               sur la nouvelle chaine
+	*/
+static char* replace(const char *str, const char *old, const char *new) {
+	char *ret, *r;
+	const char *p, *q;
+	size_t oldlen = strlen(old);
+	size_t count, retlen, newlen = strlen(new);
+
+	if (oldlen != newlen) {
+		for (count = 0, p = str; (q = strstr(p, old)) != NULL; p = q + oldlen)
+			count++;
+		retlen = p - str + strlen(p) + count * (newlen - oldlen);
+	} else
+		retlen = strlen(str);
+
+	if ((ret = malloc(retlen + 1)) == NULL)
+		return NULL;
+
+	for (r = ret, p = str; (q = strstr(p, old)) != NULL; p = q + oldlen) {
+		ptrdiff_t l = q - p;
+		memcpy(r, p, l);
+		r += l;
+		memcpy(r, new, newlen);
+		r += newlen;
+	}
+	strcpy(r, p);
+
+	return ret;
 }
