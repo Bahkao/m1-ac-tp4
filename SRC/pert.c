@@ -7,8 +7,22 @@
 #include "pert.h"
 
 
+/*
+* Structure associant une tâche à sa durée restante.
+* Utilisée pour le calcul de la durée totale du chantier.
+*/
+static typedef struct TypTacheEnCours {
+	TypTache tache;
+	int dureeRestante;
+}
+
+
 static void calculDatesAuPlusTot(TypGraphePERT*,int);
 static void calculDatesAuPlusTard(TypGraphePERT*);
+static void decompteDuree(TypTacheEnCours**,int,int);
+static void chercheTachesLibres(TypTache**,TypTache**,int*,int*);
+static void affecteTaches(TypTache**,TypTacheEnCours**,int*,int*,int);
+static void triTachesEnCours(TypTacheEnCours**,int);
 static int tacheEnSommet(char);
 static char sommetEnTache(int);
 static char* replace(const char*, const char*, const char*);
@@ -220,6 +234,7 @@ static void calculDatesAuPlusTot(TypGraphePERT *graphePERT, int sommetDepart) {
 	}
 }
 
+
 	/*
 	* Fonction : calculDatesAuPlusTard
 	*
@@ -277,14 +292,181 @@ static void calculDatesAuPlusTard(TypGraphePERT *graphePERT) {
 	* Fonction : dureeTotale
 	*
 	* Paramètres : TypGraphePERT *graphePERT, pointeur sur un graphe PERT
+	*              int nbOuvriers, le nombre d'ouvriers (>= 1)
 	*
 	* Retour : int, la durée totale du chantier
 	*
 	* Description : Renvoie la durée totale du chantier représenté par le
-	*				graphe PERT passé en paramètre
+	*				graphe PERT passé en paramètre selon le nombre d'ouvriers.
 	*/
-int dureeTotale(TypGraphePERT *graphePERT) {
-	return graphePERT->taches[graphePERT->graphe->nbrMaxSommets - 1]->dateTot;
+int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
+	int nbTaches = graphePERT->graphe->nbrMaxSommets; /* Nombre de tâches */
+	
+	/* Si le nb d'ouvriers est égal au nb de tâches, le problème est trivial */
+	if (nbOuvriers >= nbTaches) {
+		return graphePERT->taches[graphePERT->graphe->nbrMaxSommets - 1]->dateTot;
+	}
+	else {
+		TypTache **taches; /* Toutes les tâches du graphe PERT */
+		TypTache **tachesTerminees; /* Tableau des tâches terminées */
+		TypTache **tachesLibres; /* Tableau des tâches libres, c'est-à-dire des
+									tâches affectables à un ouvrier */
+		TypTache **tachesNonLibres; /* Tableau des tâches ni commencées 
+										ni libres */
+		TypTacheEnCours **tachesEnCours; /* Tableau des tâches en cours 
+											de réalisation */
+		int nbTachesTerminees; /* Nb de tâches terminées */
+		int nbTachesEnCours; /* Nb de tâches en cours */
+		int nbTachesLibres; /* Nb de tâches libres */
+		int nbTachesNonLibres; /* Nb de tâches non libres */
+		int dureeTotale; /* Durée totale du chantier (résultat à renvoyer) */
+		int i;  /* Indice de parcours des boucles */
+		
+		taches = graphePERT->taches;
+		tachesTerminees = malloc(nbTaches * sizeof(TypTache));
+		nbTachesTerminees = 0;
+		tachesLibres = malloc(nbTaches * sizeof(TypTache));
+		nbTachesLibres = 0;
+		tachesNonLibres = malloc(nbTaches * sizeof(TypTache));
+		nbTachesNonLibres = 0;
+		tachesEnCours = malloc(nbTaches * sizeof(TypTacheEnCours));
+		nbTachesEnCours = 0;
+		
+		dureeTotale = 0;
+		
+		/* 
+		* Initialisation : on affecte la tache de départ à un ouvrier,
+		* et on range les autres tâches dans tachesNonLibres
+		*/ 
+		tachesEnCours[0] = creerTacheEnCours(taches[nbTaches-2],0);
+		nbTachesEnCours = 1;
+		
+		for (i = 0; i <= nbTaches - 1; i++) {
+			if (i != nbTaches - 2) {
+				tachesNonLibres[nbTachesNonLibres] = taches[i];
+				nbTachesNonLibres++;
+			}
+		}
+		
+		/* Tant que toutes les tâches ne sont pas terminées */
+		while (nbTachesTerminees != nbTaches) {
+			int dureeRestante; /* La durée restante de la tâche qui se termine */
+			
+			/* 
+			* On considère que la prochaine tâche qui va se terminer est en
+			* tête (position 0) du tableau des tâches en cours. Cette tâche
+			* est retirée de tachesEnCours est est ajoutée à tachesTerminees.
+			*
+			* On ajoute la durée restante de cette tâche à la durée totale.
+			*/
+			tachesTerminees[nbTachesTerminees] = tachesEnCours[0].tache;
+			nbTachesTerminees++;
+			dureeRestante = tachesEnCours[0].dureeRestante;
+			nbTachesEnCours--;
+			dureeTotale += dureeRestante;
+			
+			/* On calcule la durée restante des tâches en cours restantes */
+			decompteDuree(tachesEnCours,nbTachesEnCours,dureeRestante);
+			
+			/* 
+			* On ajoute à tachesLibres d'éventuelles nouvelles tâches libres,
+			* c'est-à-dire les tâches non libres dont toutes les tâches dont
+			* elles dépendent sont terminées
+			*/
+			chercheTachesLibres(tachesNonLibres,tachesLibres,
+				&nbTachesNonLibres,&nbTachesLibres);
+				
+			/* On affecte des tâches libres à des ouvriers */
+			affecteTaches(tachesLibres,tachesEnCours,
+				&nbTachesLibres,&nbTachesEnCours,nbOuvriers);
+			
+			/* 
+			* Tri du tableau des tâches en cours dans l'ordre croissant
+			* des durées de réalisation restantes. Cela permet d'avoir
+			* en tête la prochaine tâche qui se termine.
+			*/
+			triTachesEnCours(tachesEnCours,nbTachesEnCours);
+		}
+		
+		/* Libération de la mémoire */
+		/* A COMPLETER */
+		
+		return dureeTotale;
+	}
+}
+
+
+	/*
+	* Fonction : decompteDuree
+	*
+	* Paramètres : TypTacheEnCours **tachesEC, tableau des 
+	*					tâches en cours de réalisation.
+	*              int nbTachesEC, nb de taches en cours de réalisation.
+	*              int duree, durée à décompter.
+	*
+	* Description : Soustrait à la durée restante de chacune des tâches en
+	*               cours la durée passée en paramètre
+	*/
+static void decompteDuree(TypTacheEnCours **tachesEC,int nbTachesEC,int duree) {
+	/* A COMPLETER */
+}
+
+
+	/*
+	* Fonction : chercheTachesLibres
+	*
+	* Paramètres : TypTache **tachesNL, tableau de tâches non libres.
+	*              TypTache **tachesL, tableau de tâches libres.
+	*              int *nbTachesNL, nb de tâches non libres.
+	*              int *nbTachesL, nb de tâches libres
+	*
+	* Description : Ajoute à tachesL l'ensemble des tâches non libres
+	*               dont tous les prédécesseurs ont terminé leur tâche.
+	*               Les 2 entiers passés en paramètre sont susceptibles d'être
+	*               modifiés.
+	*/
+static void chercheTachesLibres(TypTache **tachesNL,TypTache **tachesL,
+									int *nbTachesNL,int *nbTachesL) {
+	/* A COMPLETER */
+}
+
+
+	/*
+	* Fonction : affecteTaches
+	*
+	* Paramètres : TypTache **tachesL, tableau de tâches libres.
+	*              TypTacheEnCours **tachesEC, tableau de tâches en cours.
+	*              int *nbTachesL, nb de tâches libres.
+	*              int *nbTachesEC, nb de tâches en cours.
+	*              int nbOuvriers, le nombre d'ouvriers.
+	*
+	* Description : Affecte des ouvriers à des tâches : déplace de tachesL à
+	*               tachesEC certaines tâches. Le choix des tâches à affecter
+	*               se fait selon l'ordre suivant :
+	*               1. Une tâche se situe dans le chemin critique.
+	*               2. Tâche dont la date au plus tard est la plus éloignée
+	*                  de la fin du chantier
+	*
+	*               Les 2 entiers nbTachesL et nbTachesEC sont susceptibles
+	*               d'être modifiés.
+	*/
+static void affecteTaches(TypTache **tachesL,TypTacheEnCours **tachesEC,
+								int *nbTachesL,int *nbTachesEC,int nbOuvriers) {
+	/* A COMPLETER */
+}
+
+
+	/*
+	* Fonction : triTachesEnCours
+	*
+	* Paramètres : TypTacheEnCours **tachesEC, tableau de tâches en cours.
+	*              int nbTachesEC, nb de tâches en cours.
+	*
+	* Description : Trie le tableau des tâches en cours par ordre croissant
+	*               de leur durée de réalisation restante.
+	*/
+static void triTachesEnCours(TypTacheEnCours **tachesEC,int nbTachesEC) {
+	/* A COMPLETER */
 }
 
 
@@ -358,12 +540,12 @@ void afficherCheminCritique(TypGraphePERT* graphePERT){
 	* Fonction : lireGraphePERT
 	*
 	* Paramètres : FILE *fichier, un fichier de type chantier.txt 
-        *                 ouvert en lecture
-        *
-        * Retour : TypGraphePERT*, le graphe créé
+    *                 ouvert en lecture
+    *
+    * Retour : TypGraphePERT*, le graphe créé
 	*
 	* Description : Lit un fichier de type chantier.txt, puis crée le graphe
-        *               correspondant et le renvoie
+    *               correspondant et le renvoie
 	*/
 TypGraphePERT* lireGraphePERT(FILE *fichier) {
     TypGraphePERT *graphePERT; /* Le graphe PERT créé */
@@ -460,13 +642,13 @@ static char sommetEnTache(int sommet) {
 	* Fonction : replace
 	*
 	* Paramètres : char *str, la chaîne d'origine
-        *              char *old, la sous-chaîne à modifier par new
-        *              char *new, la sous-chaîne qui remplace old
-        *
-        * Retour : char*, pointeur sur la nouvelle chaîne
+    *              char *old, la sous-chaîne à modifier par new
+    *              char *new, la sous-chaîne qui remplace old
+    *
+    * Retour : char*, pointeur sur la nouvelle chaîne
 	*
 	* Description : Remplace new par old dans str et renvoie un pointeur
-        *               sur la nouvelle chaine
+    *               sur la nouvelle chaine
 	*/
 static char* replace(const char *str, const char *old, const char *new) {
 	char *ret, *r;
