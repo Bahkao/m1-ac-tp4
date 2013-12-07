@@ -28,7 +28,7 @@ void deleteGraphePERT(TypGraphePERT*);
 
 void calculDates(TypGraphePERT*);
 
-int dureeTotale(TypGraphePERT*);
+int dureeTotale(TypGraphePERT*,int);
 
 void afficherDates(TypGraphePERT*);
 
