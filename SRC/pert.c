@@ -11,16 +11,17 @@
 * Structure associant une tâche à sa durée restante.
 * Utilisée pour le calcul de la durée totale du chantier.
 */
-static typedef struct TypTacheEnCours {
-	TypTache tache;
+typedef struct TypTacheEnCours {
+	TypTache *tache;
 	int dureeRestante;
-}
+} TypTacheEnCours;
 
 
 static void calculDatesAuPlusTot(TypGraphePERT*,int);
 static void calculDatesAuPlusTard(TypGraphePERT*);
+static TypTacheEnCours* creerTacheEnCours(TypTache*);
 static void decompteDuree(TypTacheEnCours**,int,int);
-static void chercheTachesLibres(TypTache**,TypTache**,int*,int*);
+static void chercheTachesLibres(TypTache**,TypTache**,TypTache**,int*,int*,int);
 static void affecteTaches(TypTache**,TypTacheEnCours**,int*,int*,int);
 static void triTachesEnCours(TypTacheEnCours**,int);
 static int tacheEnSommet(char);
@@ -338,7 +339,7 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 		* Initialisation : on affecte la tache de départ à un ouvrier,
 		* et on range les autres tâches dans tachesNonLibres
 		*/ 
-		tachesEnCours[0] = creerTacheEnCours(taches[nbTaches-2],0);
+		tachesEnCours[0] = creerTacheEnCours(taches[nbTaches-2]);
 		nbTachesEnCours = 1;
 		
 		for (i = 0; i <= nbTaches - 1; i++) {
@@ -359,9 +360,9 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 			*
 			* On ajoute la durée restante de cette tâche à la durée totale.
 			*/
-			tachesTerminees[nbTachesTerminees] = tachesEnCours[0].tache;
+			tachesTerminees[nbTachesTerminees] = tachesEnCours[0]->tache;
 			nbTachesTerminees++;
-			dureeRestante = tachesEnCours[0].dureeRestante;
+			dureeRestante = tachesEnCours[0]->dureeRestante;
 			nbTachesEnCours--;
 			dureeTotale += dureeRestante;
 			
@@ -373,8 +374,8 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 			* c'est-à-dire les tâches non libres dont toutes les tâches dont
 			* elles dépendent sont terminées
 			*/
-			chercheTachesLibres(tachesNonLibres,tachesLibres,
-				&nbTachesNonLibres,&nbTachesLibres);
+			chercheTachesLibres(tachesNonLibres,tachesLibres,tachesTerminees,
+				&nbTachesNonLibres,&nbTachesLibres,nbTachesTerminees);
 				
 			/* On affecte des tâches libres à des ouvriers */
 			affecteTaches(tachesLibres,tachesEnCours,
@@ -397,6 +398,27 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 
 
 	/*
+	* Fonction : creerTacheEnCours
+	*
+	* Paramètres : TypTache *tache, la tâche qui va être réalisée
+    *
+    * Retour : TypTacheEnCours, la nouvelle structure
+	*
+	* Description : Crée une structure de type TypTacheEnCours, lui alloue
+    *               la mémoire et la renvoie.
+	*/
+static TypTacheEnCours* creerTacheEnCours(TypTache* tache) {
+	TypTacheEnCours* tacheEnCours; /* La nouvelle tacheEnCours */
+    
+    tacheEnCours = malloc(sizeof(TypTacheEnCours));
+    tacheEnCours->tache = tache;
+    tacheEnCours->dureeRestante = tache->duree;
+    
+    return tacheEnCours;
+}
+
+
+	/*
 	* Fonction : decompteDuree
 	*
 	* Paramètres : TypTacheEnCours **tachesEC, tableau des 
@@ -408,7 +430,13 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 	*               cours la durée passée en paramètre
 	*/
 static void decompteDuree(TypTacheEnCours **tachesEC,int nbTachesEC,int duree) {
-	/* A COMPLETER */
+    int      i;                /* indice de parcours */
+
+	for(i = 1; i <= nbTachesEC; i++){
+		
+		tachesEC[i]->dureeRestante = tachesEC[i]->dureeRestante - duree;
+		
+	}
 }
 
 
@@ -417,17 +445,65 @@ static void decompteDuree(TypTacheEnCours **tachesEC,int nbTachesEC,int duree) {
 	*
 	* Paramètres : TypTache **tachesNL, tableau de tâches non libres.
 	*              TypTache **tachesL, tableau de tâches libres.
+	*              TypTache **tachesT, tableau des tâches terminées.
 	*              int *nbTachesNL, nb de tâches non libres.
-	*              int *nbTachesL, nb de tâches libres
+	*              int *nbTachesL, nb de tâches libres.
+	*              int nbTachesT, nb de tâches terminées.
 	*
-	* Description : Ajoute à tachesL l'ensemble des tâches non libres
-	*               dont tous les prédécesseurs ont terminé leur tâche.
-	*               Les 2 entiers passés en paramètre sont susceptibles d'être
-	*               modifiés.
+	* Description : Ajoute à tachesL et supprime de taches NL l'ensemble des
+	*               tâches non libres dont tous les prédécesseurs ont terminé
+	*               leur tâche. Les entiers nbTachesNL et nbTachesL sont
+	*               susceptibles d'être modifiés.
 	*/
 static void chercheTachesLibres(TypTache **tachesNL,TypTache **tachesL,
-									int *nbTachesNL,int *nbTachesL) {
-	/* A COMPLETER */
+		TypTache **tachesT,int *nbTachesNL,int *nbTachesL, int nbTachesT) {
+	
+	int i, j; /* Permettent le parcours des boucles */
+	
+	i = 0;
+	
+	while (i <= *nbTachesNL - 1) {
+		TypTache *tacheNL;  /* Une tâche non libre */
+		char dependances[50];  /* Les dépendances de la tâche */
+		int nbDependancesT; /* Nb de dépendances terminées */
+        
+		tacheNL = tachesNL[i];
+        strcpy(dependances,tacheNL->dependances);
+		nbDependancesT = 0;
+		
+		for (j = 0; j <= nbTachesT - 1; j++) {
+			TypTache *tacheT;
+			
+			tacheT = tachesT[j];
+			/* Si la tâche terminée est une dépendance de tacheNL */
+			if (strchr(dependances,tacheT->nom) != NULL) {
+				nbDependancesT++;
+			}
+		}
+		
+		/* 
+		* Si toutes les dépendances de tacheNL sont terminées, alors on peut
+		* l'ajouter au tableau des tâches libres, et la supprimer des tâches
+		* non libres
+		*/
+		if (nbDependancesT == strlen(dependances)) {
+			TypTache *tmp; /* Permet l'échange de tâches dans tachesNL */
+			
+			tachesL[*nbTachesL] = tacheNL;
+			(*nbTachesL)++;
+			
+			if (i != *nbTachesNL - 1) {
+				tachesNL[i] = tachesNL[*nbTachesNL-1];
+				(*nbTachesNL)--;
+			}
+			else {
+				i++;
+			}
+		}
+		else {
+			i++;
+		}
+	}
 }
 
 
@@ -466,7 +542,23 @@ static void affecteTaches(TypTache **tachesL,TypTacheEnCours **tachesEC,
 	*               de leur durée de réalisation restante.
 	*/
 static void triTachesEnCours(TypTacheEnCours **tachesEC,int nbTachesEC) {
-	/* A COMPLETER */
+	int      i, j;        /* indice de parcours */
+	TypTacheEnCours *tmp;
+	
+	do {
+        j = 0;
+        for(i = 0; i <= nbTachesEC-1; i++){
+            
+            if(tachesEC[i]->dureeRestante > tachesEC[i+1]->dureeRestante) {
+                tmp = tachesEC[i];
+                tachesEC[i] = tachesEC[i+1];
+                tachesEC[i+1] = tmp;
+                j = 1;
+
+            }
+            
+        }
+    } while(j == 1);
 }
 
 
