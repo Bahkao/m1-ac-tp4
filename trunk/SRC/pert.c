@@ -510,7 +510,8 @@ static void chercheTachesLibres(TypTache **tachesNL,TypTache **tachesL,
 	/*
 	* Fonction : affecteTaches
 	*
-	* Paramètres : TypTache **tachesL, tableau de tâches libres.
+	* Paramètres : TypTache **tachesL, tableau de tâches libres trié dans
+	*                  l'ordre croissant de leur durée restante
 	*              TypTacheEnCours **tachesEC, tableau de tâches en cours.
 	*              int *nbTachesL, nb de tâches libres.
 	*              int *nbTachesEC, nb de tâches en cours.
@@ -528,7 +529,69 @@ static void chercheTachesLibres(TypTache **tachesNL,TypTache **tachesL,
 	*/
 static void affecteTaches(TypTache **tachesL,TypTacheEnCours **tachesEC,
 								int *nbTachesL,int *nbTachesEC,int nbOuvriers) {
-	/* A COMPLETER */
+	
+	int i;  /* Permet le parcours des tâches libres */
+	TypTache *tacheL;  /* Une tâche libre */
+	bool choixCCTermine; /* true si il n'y a plus de tâche libre 
+							se trouvant sur le chemin critique */
+	int indDateMin;  /* indice de la date au + tard la plus faible */
+							
+	i = 0;
+	choixCCTermine = false;
+	
+	/* 
+	* La boucle s'arrête soit lorsque tous les ouvriers ont été affectés à une
+	* tâche, soit lorsqu'il n'y a plus de tâche libre
+	*/
+	while ((nbOuvriers != *nbTachesEC) && (*nbTachesL > 0)) {
+		tacheL = tachesL[i];
+	
+		if (choixCCTermine == false) {
+			/* 
+			* Si la tâche libre se trouve sur le chemin critique alors on
+			* l'affecte à un ouvrier
+			*/
+			if (tacheL->dateTot == tacheL->dateTard) {
+				tachesL[i] = tachesL[*nbTachesL - 1];
+				(*nbTachesL)--;
+				tachesEC[*nbTachesEC] = creerTacheEnCours(tacheL);
+				(*nbTachesEC)++;
+			}
+			else {
+				i++;
+			}
+			
+			/*
+			* Si on a fini de parcourir toutes les tâches libres une première
+			* fois, alors on est sûr qu'il n'y a plus de tâche libre se
+			* trouvant sur le chemin critique
+			*/
+			if (i == *nbTachesL - 1) {
+				choixCCTermine = true;
+			}
+		}
+		else {
+			/* 
+			* On cherche la tâche libre dont la date au plus tard est la plus
+			* éloignée de la fin du chantier
+			*/
+			indDateMin = 0;
+			for (i = 1; i <= *nbTachesL - 1; i++) {
+				if (tachesL[i]->dateTard < tachesL[indDateMin]->dateTard) {
+					indDateMin = i;
+				}
+			}
+			
+			/*
+			* On affecte la tâche trouvée à un ouvrier
+			*/
+			tacheL = tachesL[indDateMin];
+			tachesL[indDateMin] = tachesL[*nbTachesL - 1];
+			(*nbTachesL)--;
+			tachesEC[*nbTachesEC] = creerTacheEnCours(tacheL);
+			(*nbTachesEC)++;
+		}
+	}
 }
 
 
