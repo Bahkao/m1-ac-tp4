@@ -72,6 +72,8 @@ TypGraphePERT* creerGraphePERT(TypTache **taches, int nbTaches) {
 	TypTache      *tacheDepart;              /* La tâche alpha de départ */
 	TypTache      *tacheArrivee;             /* La tâche oméga d'arrivée */
 	char          *dependances;               /* Les dépendances d'une tâche */
+    char          *dependancesOmega;         /* Dépendances de la tâche oméga */
+    char          *tmp;
 	int           sommet;                    /* Le numéro d'un sommet */
 	bool          sansSuccesseur[nbTaches];  /* si [i] = true, alors la tâche i+1 
 												est à relier au sommet oméga */
@@ -92,8 +94,8 @@ TypGraphePERT* creerGraphePERT(TypTache **taches, int nbTaches) {
 	}
 	
 	/* Création des tâches alpha et oméga */
-	tacheDepart = creerTache(sommetEnTache(nbTaches+1),'\0',0,'\0');
-	tacheArrivee = creerTache(sommetEnTache(nbTaches+2),'\0',0,'\0');
+	tacheDepart = creerTache(sommetEnTache(nbTaches+1),"",0,"");
+	tacheArrivee = creerTache(sommetEnTache(nbTaches+2),"",0,"");
 	
 	/* Création des arêtes */
 	for (i = 1; i <= nbTaches; i++) {
@@ -114,11 +116,19 @@ TypGraphePERT* creerGraphePERT(TypTache **taches, int nbTaches) {
 	}
 	
 	/* On relie les tâches sans successeurs au sommet oméga */
+    tmp = malloc(255 * sizeof(char));
+    j = 0;
 	for (i = 0; i <= nbTaches - 1; i++) {
 		if (sansSuccesseur[i] == true) {
 			insertionAreteOriente(graphe,i+1,nbTaches+2,taches[i]->duree);
+            tmp[j] = taches[i]->nom;
+            j++;
 		}
 	}
+    dependancesOmega = malloc(strlen(tmp)+1 * sizeof(char));
+    strcpy(dependancesOmega,tmp);
+    tacheArrivee->dependances = dependancesOmega;
+    free(tmp);
 	
 	/* On ajoute les tâches alpha et oméga au tableau des tâches */
 	taches = realloc(taches,(nbTaches+2) * sizeof(TypTache));
@@ -363,6 +373,9 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 			tachesTerminees[nbTachesTerminees] = tachesEnCours[0]->tache;
 			nbTachesTerminees++;
 			dureeRestante = tachesEnCours[0]->dureeRestante;
+            if (nbTachesEnCours > 1) {
+                tachesEnCours[0] = tachesEnCours[nbTachesEnCours-1];
+            }
 			nbTachesEnCours--;
 			dureeTotale += dureeRestante;
 			
@@ -380,7 +393,7 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 			/* On affecte des tâches libres à des ouvriers */
 			affecteTaches(tachesLibres,tachesEnCours,
 				&nbTachesLibres,&nbTachesEnCours,nbOuvriers);
-			
+            
 			/* 
 			* Tri du tableau des tâches en cours dans l'ordre croissant
 			* des durées de réalisation restantes. Cela permet d'avoir
@@ -492,13 +505,8 @@ static void chercheTachesLibres(TypTache **tachesNL,TypTache **tachesL,
 			tachesL[*nbTachesL] = tacheNL;
 			(*nbTachesL)++;
 			
-			if (i != *nbTachesNL - 1) {
-				tachesNL[i] = tachesNL[*nbTachesNL-1];
-				(*nbTachesNL)--;
-			}
-			else {
-				i++;
-			}
+            tachesNL[i] = tachesNL[*nbTachesNL-1];
+            (*nbTachesNL)--;
 		}
 		else {
 			i++;
@@ -545,9 +553,10 @@ static void affecteTaches(TypTache **tachesL,TypTacheEnCours **tachesEC,
 	*/
 	while ((nbOuvriers != *nbTachesEC) && (*nbTachesL > 0)) {
 		tacheL = tachesL[i];
-	
-		if (choixCCTermine == false) {
-			/* 
+        
+        if (choixCCTermine == false) {
+        
+            /* 
 			* Si la tâche libre se trouve sur le chemin critique alors on
 			* l'affecte à un ouvrier
 			*/
@@ -556,22 +565,25 @@ static void affecteTaches(TypTache **tachesL,TypTacheEnCours **tachesEC,
 				(*nbTachesL)--;
 				tachesEC[*nbTachesEC] = creerTacheEnCours(tacheL);
 				(*nbTachesEC)++;
+                
+                /*
+                * Si on a fini de parcourir toutes les tâches libres une première
+                * fois, alors on est sûr qu'il n'y a plus de tâche libre se
+                * trouvant sur le chemin critique
+                */
+                if (i == *nbTachesL) {
+                    choixCCTermine = true;
+                }
 			}
 			else {
-				i++;
-			}
-			
-			/*
-			* Si on a fini de parcourir toutes les tâches libres une première
-			* fois, alors on est sûr qu'il n'y a plus de tâche libre se
-			* trouvant sur le chemin critique
-			*/
-			if (i == *nbTachesL - 1) {
-				choixCCTermine = true;
+                if (i == *nbTachesL - 1) {
+                    choixCCTermine = true;
+                }
+                i++;
 			}
 		}
 		else {
-			/* 
+            /* 
 			* On cherche la tâche libre dont la date au plus tard est la plus
 			* éloignée de la fin du chantier
 			*/
@@ -610,16 +622,13 @@ static void triTachesEnCours(TypTacheEnCours **tachesEC,int nbTachesEC) {
 	
 	do {
         j = 0;
-        for(i = 0; i <= nbTachesEC-1; i++){
-            
+        for(i = 0; i <= nbTachesEC - 2; i++){
             if(tachesEC[i]->dureeRestante > tachesEC[i+1]->dureeRestante) {
                 tmp = tachesEC[i];
                 tachesEC[i] = tachesEC[i+1];
                 tachesEC[i+1] = tmp;
                 j = 1;
-
             }
-            
         }
     } while(j == 1);
 }
