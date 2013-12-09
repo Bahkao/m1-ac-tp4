@@ -24,6 +24,7 @@
 
 
 TypGraphePERT* graphePERT;
+int nbOuvriers = -1;
 
 
 static void sous_menu();
@@ -33,8 +34,7 @@ static void sousMenuDureeTotale();
 static void sousMenuDatesTaches();
 static void sousMenuCheminsCritiques();
 static void sousMenuSaisieNbOuvriers();
-static void sousMenuChoixStrategie();
-static void sousMenuDureeSelonStrategie();
+static void sousMenuDureeSelonOuvriers();
 static void sousMenuChargerFichier();
 static void sousMenuQuitter();
 static void cleanBuffer(const char *chaine);
@@ -103,7 +103,7 @@ void menu_principal() {
  */
 static void sous_menu() {
 	int choix;      /* Choix de l'utilisateur dans le menu */
-	char ligne[3];  /* Contient l'entrée au clavier de l'utilisateur */
+	char ligne[4];  /* Contient l'entrée au clavier de l'utilisateur */
 	int compte;     /* Permet de vérifier le retour de sscanf */
 	
 	printf("\n\n\n");
@@ -116,15 +116,14 @@ static void sous_menu() {
 	printf("#	4 : Dates au plus tôt et au plus tard des tâches     #\n");
 	printf("#	5 : Chemin(s) critique(s)                            #\n");
 	printf("#	6 : Saisir le nombre d'ouvriers                      #\n");
-	printf("#	7 : Choisir la stratégie d'affectation               #\n");
-	printf("#	8 : Durée du chantier compte tenu de la stratégie    #\n");
-	printf("#	9 : Charger un autre fichier                         #\n");
-	printf("#	10 : Quitter                                         #\n");
+	printf("#	7 : Durée du chantier compte tenu du nb d'ouvriers   #\n");
+	printf("#	8 : Charger un autre fichier                         #\n");
+	printf("#	9 : Quitter                                          #\n");
 	printf("##############################################################\n");
 	
 	do {
 		printf("Faites un choix: ");
-		fgets(ligne,2,stdin);
+		fgets(ligne,3,stdin);
 		cleanBuffer(ligne);
 		compte = sscanf(ligne,"%d",&choix);
 	} while (compte != 1 || choix < 1 || choix > 10);
@@ -148,16 +147,13 @@ static void sous_menu() {
 		case 6 :
 			sousMenuSaisieNbOuvriers();
 			break;
-		case 7 :
-			sousMenuChoixStrategie();
+		case 7:
+			sousMenuDureeSelonOuvriers();
 			break;
 		case 8:
-			sousMenuDureeSelonStrategie();
-			break;
-		case 9:
 			sousMenuChargerFichier();
 			break;
-		case 10 :
+		case 9 :
 			sousMenuQuitter();
 			break;
 	}
@@ -223,7 +219,7 @@ static void sousMenuSauvegarderGraphe() {
 	*/
 static void sousMenuDureeTotale() {
 	printf("\n=== Durée Totale du chantier ===\n\n");
-	printf("\nDuree totale : %d\n",dureeTotale(graphePERT));
+	printf("\nDuree totale : %d\n",dureeTotale(graphePERT,graphePERT->graphe->nbrMaxSommets));
 	pause();
 }
 
@@ -259,33 +255,43 @@ static void sousMenuCheminsCritiques() {
 	* Description : Permet de demander la saisie du nombre d'ouvriers
 	*/
 static void sousMenuSaisieNbOuvriers() {
+	int nb;
+	char ligne[11];
+	int compte;
+	
 	printf("\n=== Saisir le nombre d'ouvriers ===\n\n");
-	/* A COMPLETER */
+	do {
+		printf("Nombre d'ouvriers (>= 1) : ");
+		fgets(ligne,10,stdin);
+		cleanBuffer(ligne);
+		compte = sscanf(ligne,"%d",&nb);
+	} while (compte != 1 || nb < 1);
+	
+	nbOuvriers = nb;
+	printf("%d ouvriers travaillent désormais sur le chantier\n",nbOuvriers);
 	pause();
 }
 
 
 	/*
-	* Fonction : sousMenuChoixStrategie
-	*
-	* Description : Permet de demander le choix de la stratégie d'affectation
-	*/
-static void sousMenuChoixStrategie() {
-	printf("\n=== Choisir la stratégie d'affectation ===\n\n");
-	/* A COMPLETER */
-	pause();
-}
-
-
-	/*
-	* Fonction : sousMenuDureeSelonStrategie
+	* Fonction : sousMenuDureeSelonOuvriers
 	*
 	* Description : Permet de demander l'affichage de la durée du chantier
 	*               compte tenu de la stratégie choisie
 	*/
-static void sousMenuDureeSelonStrategie() {
-	printf("\n=== Durée du chantier compte tenu de la stratégie ===\n\n");
-	/* A COMPLETER */
+static void sousMenuDureeSelonOuvriers() {
+	int duree;
+	
+	if (nbOuvriers != -1) {
+	    printf("\n=== Durée du chantier compte tenu du nombre d'ouvriers ===\n\n");
+	    duree = dureeTotale(graphePERT,nbOuvriers);
+	    printf("Durée avec %d ouvriers : %d\n",nbOuvriers,duree);
+	}
+	else {
+	    printf("Veuillez d'abord renseigner le nombre d'ouvriers\n");
+	}
+	
+	
 	pause();
 }
 
