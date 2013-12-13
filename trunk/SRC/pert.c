@@ -230,7 +230,7 @@ static void calculDatesAuPlusTot(TypGraphePERT *graphePERT, int sommetDepart) {
 			for (j = 1; j <= nbSommets; j++) {
 				if (areteExistante(graphe,i,j) == 0) {
 					/* 
-					* ... on regarde si un plus court chemin existe 
+					* ... on regarde si un plus long chemin existe 
 					* pour le sommet d'arrivée
 					*/
 					if (taches[j-1]->dateTot < taches[i-1]->dateTot + poidsArete(graphe,i,j)) {
@@ -401,9 +401,6 @@ int dureeTotale(TypGraphePERT *graphePERT, int nbOuvriers) {
 			*/
 			triTachesEnCours(tachesEnCours,nbTachesEnCours);
 		}
-		
-		/* Libération de la mémoire */
-		/* A COMPLETER */
 		
 		return dureeTotale;
 	}
